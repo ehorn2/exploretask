@@ -1,0 +1,13 @@
+{
+  "name": "default-app",
+  "version": "1.0.0",
+  "description": "",
+  "main": "index.js",
+  "scripts": {
+    "start": "electron ."
+  },
+  "dependencies": {
+    "electron": "^8.0.1"
+  },
+  "bin": "index.js"
+}
