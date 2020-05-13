@@ -8,6 +8,7 @@ var newWin = function() {
       nodeIntegration: true
     }
   })
+  win.setContentSize(800,600)
   win.loadFile('index.html')
 }
 

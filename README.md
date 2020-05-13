@@ -1,1 +1,1 @@
-## Built with love using nodejs, electronjs, and p5js
+## Built with love using nodejs and electronjs

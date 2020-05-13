@@ -5,8 +5,17 @@
     <script>
       const remote = require('electron').remote
     </script>
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/p5.js/1.0.0/p5.js"></script>
+    <style>
+      body {
+        margin: 0px;
+        padding: 0px;
+        display: flex;
+      }
+    </style>
+    <!--<script src="https://cdnjs.cloudflare.com/ajax/libs/p5.js/1.0.0/p5.js"></script> !-->
     <script src="sketch.js"></script>
   </head>
-  <body></body>
+  <body onload=bodyLoaded()>
+    <canvas id="canvas"></canvas>
+  </body>
 </html>
