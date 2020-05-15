@@ -8,8 +8,12 @@ var newWin = function() {
       nodeIntegration: true
     }
   })
+  win.setResizable(false)
   win.setContentSize(800,600)
   win.loadFile('index.html')
+  win.webContents.on('devtools-opened', () => {
+    win.setResizable(true)
+  })
 }
 
 app.on('ready', () => {
