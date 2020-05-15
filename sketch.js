@@ -13,17 +13,19 @@ var keys = {
     space: 0
 }
 
-var Player = function() {
-    this.x = 0
-    this.y = 0
-    this.facing = 0 // -PI to PI in radians
-    this.vx = 0
-    this.vy = 0
-    this.ax = 0
-    this.ay = 0
-    this.lives = 3
-    this.shotTimer = 0
-    this.tick = function() {
+class Player {
+    constructor() {
+        this.x = 0
+        this.y = 0
+        this.facing = 0 // -PI to PI in radians
+        this.vx = 0
+        this.vy = 0
+        this.ax = 0
+        this.ay = 0
+        this.lives = 3
+        this.shotTimer = 0
+    }
+    tick() {
         // PHYSICS
         this.vx += this.ax
         this.ax = 0
@@ -54,10 +56,10 @@ var Player = function() {
         ctx.lineWidth = 2
         ctx.translate(innerWidth / 2, innerHeight / 2)
         ctx.rotate(this.facing)
-        ctx.strokeRect(-10,-10,20,20)
+        ctx.strokeRect(-10, -10, 20, 20)
         ctx.resetTransform()
     }
-    this.input = function(action) {
+    input(action) {
         if (action == 'moveUp') {
             console.log("Moving Up")
             this.ay -= 1
@@ -72,41 +74,67 @@ var Player = function() {
             this.ax += 1
         } else if (action == 'shoot') {
             console.log("Shooting")
-            if (this.shotTimer > 50) {
-                pellets.push(new Pellet(this.x, this.y, Math.cos(this.facing) * pelletSpeed, Math.sin(this.facing) * pelletSpeed, 'player'))
+            if (this.shotTimer > 12) {
+                pellets.push(new Pellet(this.x, this.y, Math.cos(this.facing) * pelletSpeed * (Math.random() + 1), Math.sin(this.facing) * pelletSpeed * (Math.random() + 1), 'player'))
                 this.shotTimer = 0
             }
         } else console.log("Invalid Action")
     }
-    this.turn = function(x, y) {
-        this.facing = Math.atan2(y - innerHeight/2, x - innerWidth/2)
+    turn(x, y) {
+        this.facing = Math.atan2(y - innerHeight / 2, x - innerWidth / 2)
     }
 }
 
-var Pellet = function(x, y, vx, vy, team) {
-    this.x = x
-    this.y = y
-    this.vx = vx
-    this.vy = vy
-    this.team = team
-    this.lifetime = 0
-}
-
-var Enemy = function() {
-    this.x = Math.random() * innerWidth * 2
-    this.y = Math.random() * innerHeight * 2
-    this.vx = (Math.random() * 2) - 1
-    this.vy = (Math.random() * 2) - 1
-    this.shotTimer = 50
-    this.tick = function() {
+class Pellet {
+    constructor(x, y, vx, vy, team) {
+        this.x = x
+        this.y = y
+        this.vx = vx
+        this.vy = vy
+        this.team = team
+        this.lifetime = 0
+        this.hitDetected = false
+    }
+    tick() {
         this.x += this.vx
         this.y += this.vy
-        if (this.shotTimer == 0) {
-            if (Math.random() < .05) this.shoot()
-        } else this.shotTimer--
+        this.lifetime++
+        ctx.translate(-player.x + (innerWidth / 2) + this.x, -player.y + (innerHeight / 2) + this.y)
+        ctx.rotate(Math.atan2(this.vy,this.vx))
+        ctx.strokeRect(0,0,6,1)
+        ctx.resetTransform()
     }
-    this.shoot = function() {
-        this.shotTimer = 200
+}
+
+class Enemy {
+    constructor() {
+        this.x = (Math.random() - .5) * innerWidth
+        this.y = (Math.random() - .5) * innerHeight
+        this.vx = (Math.random() * 2) - 1
+        this.vy = (Math.random() * 2) - 1
+        this.shotTimer = 50
+        this.hitDetected = false
+        this.facing = (Math.random() - .5) * Math.PI
+    }
+    tick() {
+        // PHYSICS
+        this.x += this.vx
+        this.y += this.vy
+
+        this.shotTimer++
+
+        // Automatic attack player
+        if (this.shotTimer > 15) {
+            if (Math.random() < 5)
+            pellets.push(new Pellet(this.x, this.y, Math.cos(Math.atan2(player.y - this.y, player.x - this.x)) * pelletSpeed * (Math.random()/5 + 1), Math.sin(Math.atan2(player.y - this.y, player.x - this.x)) * pelletSpeed * (Math.random()/5 + 1), 'enemy'))
+            this.shotTimer = 0
+        }
+
+        // RENDER
+        ctx.translate(-player.x + (innerWidth / 2) + this.x, -player.y + (innerHeight / 2) + this.y)
+        ctx.rotate(this.facing)
+        ctx.strokeRect(-10,-10,20,20)
+        ctx.resetTransform()
     }
 }
 
@@ -127,18 +155,21 @@ var draw = () => {
     // Objects
     player.tick()
     ctx.strokeStyle = '#f2f200'
-    ctx.strokeWidth = 2
+    ctx.strokeWidth = 1
     for (i = 0; i < pellets.length; i++) {
-        if (pellets[i].lifetime > 250) {
+        if (pellets[i].lifetime > 250 || pellets[i].hitDetected) {
             pellets.splice(i, 1)
         } else {
-            ctx.translate(-player.x + (innerWidth / 2) + pellets[i].x, -player.y + (innerHeight / 2) + pellets[i].y)
-            ctx.rotate(Math.atan2(pellets[i].vy,pellets[i].vx))
-            ctx.strokeRect(0,0,12,1)
-            ctx.resetTransform()
-            pellets[i].x += pellets[i].vx
-            pellets[i].y += pellets[i].vy
-            pellets[i].lifetime++
+            pellets[i].tick()
+        }
+    }
+    ctx.strokeStyle = '#bd8017'
+    ctx.strokeWidth = 2
+    for (i = 0; i < enemies.length; i++) {
+        if (enemies[i].hitDetected) {
+            enemies.splice(i, 1)
+        } else {
+            enemies[i].tick()
         }
     }
 }
