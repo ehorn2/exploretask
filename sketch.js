@@ -3,8 +3,12 @@ var ctx
 var player
 var enemies = []
 var pellets = []
-var drawInterval
+var drawInterval = 0
 var pelletSpeed = 5
+var round = 1
+var debugging = false
+var width = 800
+var height = 400
 var keys = {
     left: 0,
     right: 0,
@@ -24,6 +28,7 @@ class Player {
         this.ay = 0
         this.lives = 3
         this.shotTimer = 0
+        this.invulnerability = 50
     }
     tick() {
         // PHYSICS
@@ -37,24 +42,37 @@ class Player {
         this.vy *= .93
 
         this.shotTimer++
+        this.invulnerability++
         // COLLISIONS
-        if (this.x < -innerWidth) {
+        if (this.x < -width) {
             this.ax += 2
-        } else if (this.x > innerWidth) {
+        } else if (this.x > width) {
             this.ax -= 2
         }
-        if (this.y < -innerHeight) {
+        if (this.y < -height) {
             this.ay += 2
-        } else if (this.y > innerHeight) {
+        } else if (this.y > height) {
             this.ay -= 2
         }
         // TODO : Object Collisions
         // Not sure if I should put object collisions in pellet ticking or in player/enemy ticking
 
         // RENDER
-        ctx.strokeStyle = "#D02525"
+        switch(this.lives) {
+            case 3:
+                ctx.strokeStyle = "#22DD22"
+                break;
+            case 2:
+                ctx.strokeStyle = "#EEEE22"
+                break;
+            case 1:
+            default:
+                ctx.strokeStyle = "#DD2222"
+                break;
+        }
         ctx.lineWidth = 2
-        ctx.translate(innerWidth / 2, innerHeight / 2)
+        if (debugging) ctx.translate(this.x + innerWidth / 2, this.y + innerHeight / 2)
+            else ctx.translate(innerWidth / 2, innerHeight / 2)
         ctx.rotate(this.facing)
         ctx.strokeRect(-10, -10, 20, 20)
         ctx.resetTransform()
@@ -83,6 +101,13 @@ class Player {
     turn(x, y) {
         this.facing = Math.atan2(y - innerHeight / 2, x - innerWidth / 2)
     }
+    hit() {
+        if (this.invulnerability > 125) {
+            this.lives--
+            this.invulnerability = 0
+            if (this.lives == 0) gameOver()
+        }
+    }
 }
 
 class Pellet {
@@ -99,22 +124,48 @@ class Pellet {
         this.x += this.vx
         this.y += this.vy
         this.lifetime++
-        ctx.translate(-player.x + (innerWidth / 2) + this.x, -player.y + (innerHeight / 2) + this.y)
+
+        if (debugging) ctx.translate(this.x + innerWidth / 2, this.y + innerHeight / 2)
+        else ctx.translate(-player.x + (innerWidth / 2) + this.x, -player.y + (innerHeight / 2) + this.y)
         ctx.rotate(Math.atan2(this.vy,this.vx))
-        ctx.strokeRect(0,0,6,1)
+        ctx.strokeRect(0,0,-3,1)
         ctx.resetTransform()
+
+        // Map Boundaries
+        if (this.x < -width || this.x > width) {
+            this.hitDetected = true
+        } else if (this.y < -height || this.y > height) {
+            this.hitDetected = true
+        }
+        if (this.x < player.x + 10 && this.x > player.x - 10 && this.y < player.y + 10 && this.y > player.y - 10 && this.team == "enemy") {
+            player.hit()
+            this.hitDetected = true
+            console.log("Player hit!")
+        }
+        enemies.forEach(i => {
+            if (this.x < i.x + (3*i.lives) && this.x > i.x - (3*i.lives) && this.y < i.y + (3*i.lives) && this.y > i.y - (3*i.lives) && this.team == "player" && i.invulnerability > 125) {
+                console.log("Enemy hit!")
+                this.hitDetected = true
+                i.lives--
+                if (i.lives == 0) {
+                    i.hitDetected = true
+                }
+            }
+        })
     }
 }
 
 class Enemy {
     constructor() {
-        this.x = (Math.random() - .5) * innerWidth
-        this.y = (Math.random() - .5) * innerHeight
+        this.x = (Math.random() - .5) * width
+        this.y = (Math.random() - .5) * height
         this.vx = (Math.random() * 2) - 1
         this.vy = (Math.random() * 2) - 1
         this.shotTimer = 50
         this.hitDetected = false
-        this.facing = (Math.random() - .5) * Math.PI
+        this.facing = (Math.random() - 0.5) * Math.PI
+        this.lives = 3
+        this.invulnerability = 50
     }
     tick() {
         // PHYSICS
@@ -122,36 +173,56 @@ class Enemy {
         this.y += this.vy
 
         this.shotTimer++
+        this.invulnerability++
+
+        // Map Boundaries
+        if (this.x < -width) this.vx = Math.abs(this.vx)
+        if (this.x > width) this.vx = Math.abs(this.vx) * -1
+        if (this.y < -height) this.vy = Math.abs(this.vy)
+        if (this.y > height) this.vy = Math.abs(this.vy) * -1
 
         // Automatic attack player
-        if (this.shotTimer > 15) {
-            if (Math.random() < 5)
+        if (this.shotTimer > 25) {
+            if (Math.random() < .1)
             pellets.push(new Pellet(this.x, this.y, Math.cos(Math.atan2(player.y - this.y, player.x - this.x)) * pelletSpeed * (Math.random()/5 + 1), Math.sin(Math.atan2(player.y - this.y, player.x - this.x)) * pelletSpeed * (Math.random()/5 + 1), 'enemy'))
             this.shotTimer = 0
         }
 
         // RENDER
-        ctx.translate(-player.x + (innerWidth / 2) + this.x, -player.y + (innerHeight / 2) + this.y)
+        if (debugging) ctx.translate(this.x + innerWidth / 2, this.y + innerHeight / 2)
+        else ctx.translate(-player.x + (innerWidth / 2) + this.x, -player.y + (innerHeight / 2) + this.y)
         ctx.rotate(this.facing)
-        ctx.strokeRect(-10,-10,20,20)
+        ctx.strokeRect(-3 * this.lives, -3 * this.lives, 6 * this.lives, 6 * this.lives)
         ctx.resetTransform()
+        this.facing += .01
     }
 }
 
 var newGame = () => {
     player = new Player()
+    enemies = []
+    for (i = 0; i < round; i++) {
+        enemies.push(new Enemy())
+    }
+    clearInterval(drawInterval)
     drawInterval = setInterval(function(){draw()}, 12)
+}
+
+var gameOver = () => {
+    clearInterval(drawInterval)
 }
 
 var draw = () => {
     // Environment
     ctx.fillStyle = '#555555' 
     ctx.fillRect(0, 0, innerWidth, innerHeight)
-    ctx.strokeStyle = '#111111'
-    ctx.lineWidth = 10
-    ctx.translate(-player.x + (innerWidth / 2), -player.y + (innerHeight / 2))
-    ctx.strokeRect(-innerWidth, -innerHeight, innerWidth * 2, innerHeight * 2)
-    ctx.resetTransform()
+    if (!debugging) {
+        ctx.strokeStyle = '#111111'
+        ctx.lineWidth = 10
+        ctx.translate(-player.x + (innerWidth / 2), -player.y + (innerHeight / 2))
+        ctx.strokeRect(-innerWidth, -innerHeight, innerWidth * 2, innerHeight * 2)
+        ctx.resetTransform()
+    }
     // Objects
     player.tick()
     ctx.strokeStyle = '#f2f200'
@@ -208,6 +279,9 @@ var bodyLoaded = function() {
                         player.input('shoot')
                     }, 20)
                     break;
+                case 'KeyD':
+                    toggleDebug()
+                    break;
             }
         }
     })
@@ -244,4 +318,16 @@ window.onresize = function() {
     canvas.width = innerWidth
     canvas.height = innerHeight
     draw()
+}
+
+
+// For debugging purposes: removes the "camera"
+var toggleDebug = () => {
+    if (debugging) {
+        debugging = false
+        remote.windowSize(width,height)
+    } else {
+        debugging = true
+        remote.windowSize(width*2, height*2)
+    }
 }
