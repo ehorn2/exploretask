@@ -1,6 +1,7 @@
 var canvas
 var ctx
 var player
+var goal
 var enemies = []
 var pellets = []
 var drawInterval = 0
@@ -16,6 +17,7 @@ var keys = {
     down: 0,
     space: 0
 }
+
 
 class Player {
     constructor() {
@@ -171,7 +173,7 @@ class Enemy {
         // PHYSICS
         this.x += this.vx
         this.y += this.vy
-
+ 
         this.shotTimer++
         this.invulnerability++
 
@@ -198,8 +200,33 @@ class Enemy {
     }
 }
 
+class Goal {
+    constructor() {
+        this.x = (Math.random() - .5) * 2 * width
+        this.y = (Math.random() - .5) * 2 * height
+    }
+    tick() {
+        // Check Collision with Player
+        if (Math.sqrt(((this.x - player.x) * (this.x - player.x)) + ((this.y - player.y) * (this.y - player.y))) < 20) {
+            round++
+            newGame()
+        }
+        // Render
+        ctx.strokeStyle = "#22DDDD"
+        ctx.lineWidth = 2
+        if (debugging) ctx.translate(this.x + innerWidth / 2, this.y + innerHeight / 2)
+        else ctx.translate(-player.x + (innerWidth / 2) + this.x, -player.y + (innerHeight / 2) + this.y)
+        ctx.beginPath()
+        ctx.arc(0, 0, 20, 0, Math.PI * 2)
+        ctx.stroke()
+        ctx.resetTransform()
+    }
+}
+
 var newGame = () => {
     player = new Player()
+    goal = new Goal()
+    pellets = []
     enemies = []
     for (i = 0; i < round; i++) {
         enemies.push(new Enemy())
@@ -209,6 +236,8 @@ var newGame = () => {
 }
 
 var gameOver = () => {
+    // TODO: Game over screen!
+    //      -- Score??
     clearInterval(drawInterval)
 }
 
@@ -225,6 +254,7 @@ var draw = () => {
     }
     // Objects
     player.tick()
+    goal.tick()
     ctx.strokeStyle = '#f2f200'
     ctx.strokeWidth = 1
     for (i = 0; i < pellets.length; i++) {
