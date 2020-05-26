@@ -2,6 +2,9 @@ var canvas
 var ctx
 var player
 var goal
+var shop
+var upgrades
+var gold = []
 var enemies = []
 var pellets = []
 var drawInterval = 0
@@ -18,6 +21,84 @@ var keys = {
     space: 0
 }
 
+var upgradeInfo = {
+    pellets:{
+        pos:0,
+        cost:[5,10,15,20,25],
+        amplifiers:[1,2,3,4,5],
+        text:"Pellet Count [1]"
+    },
+    spread:{
+        pos:1,
+        cost:[5,10,15,20,25],
+        amplifiers:[2,1.5,1,0.5,0],
+        text:"Pellet Spread [2]"
+    },
+    speed:{
+        pos:2,
+        cost:[5,10,15,20,25],
+        amplifiers:[.8,1,1.2,1.5,2],
+        text:"Pellet Speed [3]"
+    },
+    evasive:{
+        pos:3,
+        cost:[5,10,15,20,25],
+        amplifiers:[1,1.25,1.5,2,2.5],
+        text:"Evasiveness [4]"
+    },
+    magnet:{
+        pos:4,
+        cost:[3,5,7,10,15],
+        amplifiers:[1,1.5,2,3,5],
+        text:"Coin Magnet [5]"
+    }
+}
+
+class Upgrades {
+    constructor() {
+        this.pellets = 0
+        this.spread = 0
+        this.speed = 0
+        this.evasive = 0
+        this.magnet = 0
+        this.gold = 10
+    }
+    shop() {
+        player.shopOpen = true
+        ctx.fillStyle = '#555555' 
+        ctx.fillRect(0, 0, innerWidth, innerHeight)
+
+        ctx.strokeStyle = '#252525'
+        ctx.lineWidth = 2
+        for (i in upgradeInfo) {
+            ctx.fillStyle = '#228822'
+            ctx.fillRect(280,25 + (upgradeInfo[i].pos * 60), (upgrades[i] + 1) * 100, 50)
+            ctx.font = '48px sans-serif'
+            ctx.fillStyle = '#252525'
+            ctx.fillText(upgradeInfo[i].text, 20, 69 + (upgradeInfo[i].pos * 60), 180)
+            ctx.fillText(upgradeInfo[i].cost[upgrades[i]].toString(), 220, 69 + (upgradeInfo[i].pos * 60), 60)
+            for (var j = 0; j < 5; j++) {
+                ctx.strokeRect(280 + (j * 100), 25 + (upgradeInfo[i].pos * 60), 100, 50)
+            }
+        }
+        ctx.font = '48px sans-serif'
+        ctx.fillStyle = '#252525'
+        ctx.fillText("Funds: " + upgrades.gold, 20, 369, 180)
+        ctx.fillText("Done [Enter]", 220, 369)
+    }
+    buy(type) {
+        if (upgrades[type] < 4) {
+            if (upgrades.gold > upgradeInfo[type].cost[upgrades[type]]) {
+                upgrades.gold -= upgradeInfo[type].cost[upgrades[type]]
+                upgrades[type]++
+                upgrades.shop()
+            }
+        }
+    }
+    closeShop() {
+        newGame()
+    }
+}
 
 class Player {
     constructor() {
@@ -31,6 +112,7 @@ class Player {
         this.lives = 3
         this.shotTimer = 0
         this.invulnerability = 50
+        this.shopOpen = false
     }
     tick() {
         // PHYSICS
@@ -56,8 +138,6 @@ class Player {
         } else if (this.y > height) {
             this.ay -= 2
         }
-        // TODO : Object Collisions
-        // Not sure if I should put object collisions in pellet ticking or in player/enemy ticking
 
         // RENDER
         switch(this.lives) {
@@ -151,6 +231,9 @@ class Pellet {
                 i.lives--
                 if (i.lives == 0) {
                     i.hitDetected = true
+                    for (var j = 0; j < 3; j++) {
+                        gold.push(new Gold(this.x + (Math.random() - .5) * 25, this.y + (Math.random() - .5) * 25))
+                    }
                 }
             }
         })
@@ -206,11 +289,6 @@ class Goal {
         this.y = (Math.random() - .5) * 2 * height
     }
     tick() {
-        // Check Collision with Player
-        if (Math.sqrt(((this.x - player.x) * (this.x - player.x)) + ((this.y - player.y) * (this.y - player.y))) < 20) {
-            round++
-            newGame()
-        }
         // Render
         ctx.strokeStyle = "#22DDDD"
         ctx.lineWidth = 2
@@ -219,26 +297,66 @@ class Goal {
         ctx.beginPath()
         ctx.arc(0, 0, 20, 0, Math.PI * 2)
         ctx.stroke()
+
+        ctx.globalAlpha = enemies.length / (round + 1)
+        ctx.fillStyle = "#22DDDD"
+        ctx.beginPath()
+        ctx.arc(0, 0, 20, 0, Math.PI * 2)
+        ctx.fill()
+        ctx.globalAlpha = 1
         ctx.resetTransform()
+
+        // Check Collision with Player
+        if (Math.sqrt(((this.x - player.x) * (this.x - player.x)) + ((this.y - player.y) * (this.y - player.y))) < 20 && enemies.length == 0) {
+            round++
+            clearInterval(drawInterval)
+            upgrades.shop()
+        }
     }
 }
 
+class Gold {
+    constructor(x, y) {
+        this.x = x
+        this.y = y
+        this.hitDetected = false
+    }
+    tick() {
+        // Render
+        if (debugging) ctx.translate(this.x + innerWidth / 2, this.y + innerHeight / 2)
+        else ctx.translate(-player.x + (innerWidth / 2) + this.x, -player.y + (innerHeight / 2) + this.y)
+        ctx.beginPath()
+        ctx.arc(0, 0, 3, 0, Math.PI * 2)
+        ctx.stroke()
+        ctx.resetTransform()
+
+        // Check if collected by player
+        if (Math.sqrt(((this.x - player.x) * (this.x - player.x)) + ((this.y - player.y) * (this.y - player.y))) < 15 * upgradeInfo.magnet.amplifiers[upgrades.magnet]) {
+            this.hitDetected = true
+            upgrades.gold += 3
+        }
+    }
+}
 var newGame = () => {
     player = new Player()
     goal = new Goal()
     pellets = []
     enemies = []
+    gold = []
     for (i = 0; i < round; i++) {
         enemies.push(new Enemy())
     }
-    clearInterval(drawInterval)
     drawInterval = setInterval(function(){draw()}, 12)
 }
 
 var gameOver = () => {
-    // TODO: Game over screen!
-    //      -- Score??
     clearInterval(drawInterval)
+    setInterval(function() {
+        ctx.font = '50px sans-serif'
+        ctx.textAlign = 'center'
+        ctx.fillStyle = 'rgb(' + (Math.random() + 0.775)*100 + ', 0, 0)'
+        ctx.fillText("Game Over", innerWidth / 2, innerHeight / 2)
+    },50)
 }
 
 var draw = () => {
@@ -271,6 +389,15 @@ var draw = () => {
             enemies.splice(i, 1)
         } else {
             enemies[i].tick()
+        }
+    }
+    ctx.strokeStyle = '#55aa55'
+    ctx.strokeWidth = 1
+    for (i = 0; i < gold.length; i++) {
+        if (gold[i].lifetime > 250 || gold[i].hitDetected) {
+            gold.splice(i, 1)
+        } else {
+            gold[i].tick()
         }
     }
 }
@@ -312,6 +439,23 @@ var bodyLoaded = function() {
                 case 'KeyD':
                     toggleDebug()
                     break;
+                case 'Digit1':
+                    upgrades.buy('pellets')
+                    break;
+                case 'Digit2':
+                    upgrades.buy('spread')
+                    break;
+                case 'Digit3':
+                    upgrades.buy('speed')
+                    break;
+                case 'Digit4':
+                    upgrades.buy('evasive')
+                    break;
+                case 'Digit5':
+                    upgrades.buy('magnet')
+                    break;
+                case 'Enter':
+                    upgrades.closeShop()
             }
         }
     })
@@ -339,6 +483,7 @@ var bodyLoaded = function() {
     })
     canvas = document.getElementById("canvas")
     ctx = canvas.getContext("2d")
+    upgrades = new Upgrades()
     canvas.width = innerWidth
     canvas.height = innerHeight
     newGame()
@@ -347,7 +492,7 @@ var bodyLoaded = function() {
 window.onresize = function() {
     canvas.width = innerWidth
     canvas.height = innerHeight
-    draw()
+    if (!player.shopOpen) draw()
 }
 
 
