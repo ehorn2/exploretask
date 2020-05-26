@@ -24,31 +24,32 @@ var keys = {
 var upgradeInfo = {
     pellets:{
         pos:0,
-        cost:[5,10,15,20,25],
+        cost:[5,10,15,20],
         amplifiers:[1,2,3,4,5],
         text:"Pellet Count [1]"
     },
     spread:{
         pos:1,
-        cost:[5,10,15,20,25],
-        amplifiers:[2,1.5,1,0.5,0],
+        cost:[5,10,15,20],
+        amplifiers:[1,2,4,8,200],
         text:"Pellet Spread [2]"
     },
     speed:{
         pos:2,
-        cost:[5,10,15,20,25],
-        amplifiers:[.8,1,1.2,1.5,2],
+        cost:[5,10,15,20],
+        amplifiers:[3,5,7,9,13],
+        cooldowns:[15,12,10,8,5],
         text:"Pellet Speed [3]"
     },
     evasive:{
         pos:3,
-        cost:[5,10,15,20,25],
-        amplifiers:[1,1.25,1.5,2,2.5],
+        cost:[5,10,15,20],
+        amplifiers:[1,.9,.8,.65,.5],
         text:"Evasiveness [4]"
     },
     magnet:{
         pos:4,
-        cost:[3,5,7,10,15],
+        cost:[3,5,7,10],
         amplifiers:[1,1.5,2,3,5],
         text:"Coin Magnet [5]"
     }
@@ -76,7 +77,7 @@ class Upgrades {
             ctx.font = '48px sans-serif'
             ctx.fillStyle = '#252525'
             ctx.fillText(upgradeInfo[i].text, 20, 69 + (upgradeInfo[i].pos * 60), 180)
-            ctx.fillText(upgradeInfo[i].cost[upgrades[i]].toString(), 220, 69 + (upgradeInfo[i].pos * 60), 60)
+            if (upgradeInfo[i].cost[upgrades[i]]) ctx.fillText(upgradeInfo[i].cost[upgrades[i]].toString(), 220, 69 + (upgradeInfo[i].pos * 60), 60)
             for (var j = 0; j < 5; j++) {
                 ctx.strokeRect(280 + (j * 100), 25 + (upgradeInfo[i].pos * 60), 100, 50)
             }
@@ -88,7 +89,7 @@ class Upgrades {
     }
     buy(type) {
         if (upgrades[type] < 4) {
-            if (upgrades.gold > upgradeInfo[type].cost[upgrades[type]]) {
+            if (upgrades.gold >= upgradeInfo[type].cost[upgrades[type]] && player.shopOpen == true) {
                 upgrades.gold -= upgradeInfo[type].cost[upgrades[type]]
                 upgrades[type]++
                 upgrades.shop()
@@ -96,7 +97,7 @@ class Upgrades {
         }
     }
     closeShop() {
-        newGame()
+        if (player.shopOpen) newGame()
     }
 }
 
@@ -162,20 +163,63 @@ class Player {
     input(action) {
         if (action == 'moveUp') {
             console.log("Moving Up")
-            this.ay -= 1
+            this.ay -= 1 / upgradeInfo.evasive.amplifiers[upgrades.evasive]
         } else if (action == 'moveDown') {
             console.log("Moving Down")
-            this.ay += 1
+            this.ay += 1 / upgradeInfo.evasive.amplifiers[upgrades.evasive]
         } else if (action == 'moveLeft') {
             console.log("Moving Left")
-            this.ax -= 1
+            this.ax -= 1 / upgradeInfo.evasive.amplifiers[upgrades.evasive]
         } else if (action == 'moveRight') {
             console.log("Moving Right")
-            this.ax += 1
+            this.ax += 1 / upgradeInfo.evasive.amplifiers[upgrades.evasive]
         } else if (action == 'shoot') {
             console.log("Shooting")
-            if (this.shotTimer > 12) {
-                pellets.push(new Pellet(this.x, this.y, Math.cos(this.facing) * pelletSpeed * (Math.random() + 1), Math.sin(this.facing) * pelletSpeed * (Math.random() + 1), 'player'))
+            if (this.shotTimer > upgradeInfo.speed.cooldowns[upgrades.speed]) {
+                // This switch describes how pellets should be spawned depending on the upgrade for pellet count
+                switch(upgradeInfo.pellets.amplifiers[upgrades.pellets]) {
+                    case 5:
+                        pellets.push(new Pellet(
+                            this.x, 
+                            this.y, 
+                            Math.cos(this.facing - .628 + (Math.random() - .5) / upgradeInfo.spread.amplifiers[upgrades.spread] ) * upgradeInfo.speed.amplifiers[upgrades.speed] * (Math.random() / 10 + 1), 
+                            Math.sin(this.facing - .628 + (Math.random() - .5) / upgradeInfo.spread.amplifiers[upgrades.spread] ) * upgradeInfo.speed.amplifiers[upgrades.speed] * (Math.random() / 10 + 1), 
+                            'player'
+                            ))
+                    case 4:
+                        pellets.push(new Pellet(
+                            this.x, 
+                            this.y, 
+                            Math.cos(this.facing + .628 + (Math.random() - .5) / upgradeInfo.spread.amplifiers[upgrades.spread] ) * upgradeInfo.speed.amplifiers[upgrades.speed] * (Math.random() / 10 + 1), 
+                            Math.sin(this.facing + .628 + (Math.random() - .5) / upgradeInfo.spread.amplifiers[upgrades.spread] ) * upgradeInfo.speed.amplifiers[upgrades.speed] * (Math.random() / 10 + 1), 
+                            'player'
+                            ))
+                    case 3:
+                        pellets.push(new Pellet(
+                            this.x, 
+                            this.y, 
+                            Math.cos(this.facing - .314 + (Math.random() - .5) / upgradeInfo.spread.amplifiers[upgrades.spread] ) * upgradeInfo.speed.amplifiers[upgrades.speed] * (Math.random() / 10 + 1), 
+                            Math.sin(this.facing - .314 + (Math.random() - .5) / upgradeInfo.spread.amplifiers[upgrades.spread] ) * upgradeInfo.speed.amplifiers[upgrades.speed] * (Math.random() / 10 + 1), 
+                            'player'
+                            ))
+                    case 2:
+                        pellets.push(new Pellet(
+                            this.x, 
+                            this.y, 
+                            Math.cos(this.facing + .314 + (Math.random() - .5) / upgradeInfo.spread.amplifiers[upgrades.spread] ) * upgradeInfo.speed.amplifiers[upgrades.speed] * (Math.random() / 10 + 1), 
+                            Math.sin(this.facing + .314 + (Math.random() - .5) / upgradeInfo.spread.amplifiers[upgrades.spread] ) * upgradeInfo.speed.amplifiers[upgrades.speed] * (Math.random() / 10 + 1), 
+                            'player'
+                            ))
+                    case 1:
+                        pellets.push(new Pellet(
+                            this.x, 
+                            this.y, 
+                            Math.cos(this.facing + (Math.random() - .5) / upgradeInfo.spread.amplifiers[upgrades.spread] ) * upgradeInfo.speed.amplifiers[upgrades.speed] * (Math.random() / 10 + 1), 
+                            Math.sin(this.facing + (Math.random() - .5) / upgradeInfo.spread.amplifiers[upgrades.spread] ) * upgradeInfo.speed.amplifiers[upgrades.speed] * (Math.random() / 10 + 1), 
+                            'player'
+                            ))
+                        break;
+                }
                 this.shotTimer = 0
             }
         } else console.log("Invalid Action")
@@ -184,7 +228,7 @@ class Player {
         this.facing = Math.atan2(y - innerHeight / 2, x - innerWidth / 2)
     }
     hit() {
-        if (this.invulnerability > 125) {
+        if (this.invulnerability > 75 && Math.random() < upgradeInfo.evasive.amplifiers[upgrades.evasive]) {
             this.lives--
             this.invulnerability = 0
             if (this.lives == 0) gameOver()
@@ -434,7 +478,7 @@ var bodyLoaded = function() {
                     clearInterval(keys.space)
                     keys.space = setInterval(function () {
                         player.input('shoot')
-                    }, 20)
+                    }, 2)
                     break;
                 case 'KeyD':
                     toggleDebug()
